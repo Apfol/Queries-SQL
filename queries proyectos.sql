@@ -1,28 +1,45 @@
 select 
     P.nombre as Nombre_Producto, 
     L.nombre as Nombre_Local, 
-    (select count(Co.IDCompra) from compra Co where Co.IDProducto = P.IDProducto) as Ventas_realizadas,
-    if(count(Co.IDProducto) <> 0, concat('$', sum(P.Precio)), 'No registra') as Total_ventas,
-    if(count(Co.IDProducto) <> 0, max(Pa.FechaPago), 'No registra') as Fecha_último_pago,
+    count(Co.IDProducto) as Ventas,
+    if (count(Co.IDProducto) <> 0, 
+        concat('$', sum(P.Precio)), 
+        concat('Sin ventas, producto de categoría ', (Select Ca.TipoCategoria from categoria Ca where Ca.IDCategoria = P.IDCategoria))
+    ) as Total_ventas,
+    if (count(Co.IDProducto) <> 0, 
+        max(Pa.FechaPago), 
+        'No registra'
+    ) as Fecha_último_pago,
     case
         when max(Pa.FechaPago) > date_add(NOW(), INTERVAL -1 MONTH) then 
-            concat('Se realizó hace menos de un mes, exactamente hace', DATEDIFF(CURRENT_DATE, max(Pa.FechaPago)), 
-                if(DATEDIFF(CURRENT_DATE, max(Pa.FechaPago)) > 1, ' días', ' día'))
+            concat('Menos de un mes, exactamente hace', DATEDIFF(CURRENT_DATE, max(Pa.FechaPago)), 
+                if (DATEDIFF(CURRENT_DATE, max(Pa.FechaPago)) > 1, 
+                    ' días.', 
+                    ' día.'
+                )
+            )
         when (max(Pa.FechaPago) <= date_add(NOW(), INTERVAL -1 MONTH) and max(Pa.FechaPago) > date_add(NOW(), INTERVAL -1 YEAR)) then 
-            concat('Se realizó hace más de un mes, exactamente hace ', DATEDIFF(CURRENT_DATE, max(Pa.FechaPago)),
-                if(DATEDIFF(CURRENT_DATE, max(Pa.FechaPago)) > 1, ' días', ' día'))
+            concat('Más de un mes, exactamente hace ', DATEDIFF(CURRENT_DATE, max(Pa.FechaPago)),
+                if (DATEDIFF(CURRENT_DATE, max(Pa.FechaPago)) > 1, 
+                ' días.', 
+                ' día.'
+                )
+            )
         when count(Co.IDProducto) = 0 then 'No registra'
         else 
-            concat('Se realizó hace más de un año, exactamente hace ', DATEDIFF(CURRENT_DATE, max(Pa.FechaPago)),
-                if(DATEDIFF(CURRENT_DATE, max(Pa.FechaPago)) > 1, ' días', ' día'))
-        end as Informe_último_pago
-    from producto P 
-    left join compra Co on P.IDProducto = Co.IDProducto
-    left join local L on L.IDLocal = P.IDLocal
-    left join pago Pa on Pa.IDPago = Co.IDPago
-    left join cliente Cl on Cl.IDCliente = Co.IDCliente
-    group by Co.IDProducto, L.IDLocal, P.IDProducto
-    order by Ventas_realizadas DESC;
+            concat('Más de un año, exactamente hace ', DATEDIFF(CURRENT_DATE, max(Pa.FechaPago)),
+                if (DATEDIFF(CURRENT_DATE, max(Pa.FechaPago)) > 1, 
+                ' días.', 
+                ' día.'
+                )
+            )
+    end as Realización_último_pago
+from producto P 
+left join compra Co on P.IDProducto = Co.IDProducto
+left join local L on L.IDLocal = P.IDLocal
+left join pago Pa on Pa.IDPago = Co.IDPago
+group by Co.IDProducto, L.IDLocal, P.IDProducto
+order by Ventas DESC;
 
 
 select P.nombre, max(C) from (select count(Co.IDProducto) as C from producto P 
@@ -38,3 +55,7 @@ select P.nombre, count(Co.IDProducto), Cl.nombre as C from producto P
 select P.nombre, 
     (select count(Co.IDCompra) from compra Co where Co.IDProducto = P.IDProducto)
     from producto P;
+
+Select V.nombre from vendedor V 
+    inner join envio E on E.IDVendedor = V.IDVendedor
+    where E.IDCompra = Co.IDCompra;
